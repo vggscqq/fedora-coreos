@@ -1,0 +1,10 @@
+version: "3"
+
+services:
+  butane:
+    image: quay.io/coreos/butane:release
+    container_name: butane
+    volumes:
+      - '.:/app'
+    working_dir: '/app'
+    command: '-p -s /app/srv.bu -o /app/srv.ign'

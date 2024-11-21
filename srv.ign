@@ -1,0 +1,99 @@
+{
+  "ignition": {
+    "version": "3.2.0"
+  },
+  "passwd": {
+    "users": [
+      {
+        "name": "root"
+      },
+      {
+        "groups": [
+          "wheel"
+        ],
+        "name": "vgscq",
+        "passwordHash": "$6$ZW280c2dn3OoDOn6$6gV9GbqrT0Xt6cucnzDaK6L0a6jQmJV7KIpeFNTY7by9Uk/BthDsj2FS8Zs5ZwlmeDsE0tkaKVQT468cQ4.tl/",
+        "sshAuthorizedKeys": [
+          "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCdM7kni2Y/FU6FR7h/8YtrcLlqX2OCr1dS2Xfa9uOMPszCs6xFQ9IJ0lbIl2aVnqteHpFYBFv/bT0xvBbU/X1A5rEhihQ7zRVOYVvWlXp++dPqFjVbO9XRatBLolJT5X5z4LYP92FPraZ75rXc9+kWBpqT5Aufhmi90+7G5qXHWMDzPKgwJwpwr7ryARWwilAA8sZxeLT4r9MPkEJSN8nrntdunypsl8FrGbuM71CXk0illk3hzdqUx2agW/sG/HJg3uNgrgwkAS7Wgsuud9t8ei/WrBNN9TTC7WiA/9UXh7b1kyRXYAJ9XCOjZ+dtU9ON8nDSPjcG/8CVN5VcErHo1efBknmBJqI4ldXupQFbyWeQCzs4HQ9JV0syba1vIbnu2tr42GsqYgjCUJHPVA+SKCxgna3H3uq+B3ISSh/+Mz0ZUhQN5tfIfuAXIIcQBqAJYeJ4AnVW3Wzv1muPGZBbBg3wmeSnn6ElddNg4+PkHev4xYWvlaejrAg5OSQJR/s= vgscq@vgscq-laptop"
+        ]
+      }
+    ]
+  },
+  "storage": {
+    "files": [
+      {
+        "path": "/etc/hostname",
+        "contents": {
+          "compression": "",
+          "source": "data:,coreos%0A"
+        },
+        "mode": 420
+      },
+      {
+        "overwrite": true,
+        "path": "/etc/NetworkManager/system-connections/eth0.nmconnection",
+        "contents": {
+          "compression": "",
+          "source": "data:,%5Bconnection%5D%0Aid%3Deth0%0Atype%3Dethernet%0Ainterface-name%3Deth0%0A%0A%5Bipv4%5D%0Amethod%3Dauto%0Adns%3D8.8.8.8%3B1.1.1.1%0Adns-search%3Dvgscq.cc%0Amay-fail%3Dfalse%0A"
+        },
+        "mode": 384
+      },
+      {
+        "overwrite": true,
+        "path": "/etc/selinux/config",
+        "contents": {
+          "compression": "",
+          "source": "data:,SELINUX%3Dpermissive%0ASELINUXTYPE%3Dtargeted%0A"
+        },
+        "mode": 436
+      },
+      {
+        "overwrite": true,
+        "path": "/etc/sysconfig/nftables.conf",
+        "contents": {
+          "compression": "gzip",
+          "source": "data:;base64,H4sIAAAAAAAC/4zOy6kDMQyF4b2rOCXcvavxdWQsIiyhkQkmTO+BMJNdHkvxi4/TZG4dPoU2ipxSlH8h8KBAYwly3BNQe+EBHjbjeQOxjM6Prno9ojmrcyz8ZZgK14VSK1nkBOwvqanfil/eWWf+UdMZH4Yd9Yu1p0cAAAD//7doXhwKAQAA"
+        },
+        "mode": 384
+      },
+      {
+        "path": "/etc/yum.repos.d/tailscale.repo",
+        "contents": {
+          "source": "https://pkgs.tailscale.com/stable/fedora/tailscale.repo"
+        },
+        "mode": 420
+      }
+    ],
+    "links": [
+      {
+        "path": "/etc/localtime",
+        "target": "../usr/share/zoneinfo/Europe/Prague"
+      }
+    ]
+  },
+  "systemd": {
+    "units": [
+      {
+        "enabled": true,
+        "name": "tailscaled.service"
+      },
+      {
+        "enabled": true,
+        "name": "sshd.service"
+      },
+      {
+        "enabled": true,
+        "name": "cockpit.socket"
+      },
+      {
+        "enabled": true,
+        "name": "docker.service"
+      },
+      {
+        "contents": "[Unit]\nDescription=Initial System Setup\n# We run after `systemd-machine-id-commit.service` to ensure that\n# `ConditionFirstBoot=true` services won't rerun on the next boot.\nAfter=systemd-machine-id-commit.service\nAfter=network-online.target\n# We run before `zincati.service` to avoid conflicting rpm-ostree\n# transactions.\nBefore=zincati.service\nConditionPathExists=!/var/lib/%N.stamp\n\n[Service]\nType=oneshot\nRemainAfterExit=yes\nExecStart=/usr/sbin/restorecon -R /var\nExecStart=/usr/sbin/setsebool -P container_use_cephfs off\nExecStart=/usr/sbin/setsebool -P virt_use_nfs off\nExecStart=/usr/sbin/setsebool -P virt_use_samba off\nExecStart=/usr/bin/rpm-ostree install qemu-guest-agent tuned unbound neovim htop tailscale\nExecStart=/usr/bin/sed -i 's/\\s+nullok//g' /etc/pam.d/system-auth\nExecStart=/usr/bin/echo 'EDITOR=nvim' \u003e\u003e /etc/bashrc\nExecStart=/usr/bin/echo 'VISUAL=nvim' \u003e\u003e /etc/bashrc\nExecStart=/usr/bin/systemctl disable systemd-resolved\nExecStart=/usr/bin/touch /var/lib/%N.stamp\nExecStart=/usr/bin/systemctl --no-block reboot\n\n[Install]\nWantedBy=multi-user.target",
+        "enabled": true,
+        "name": "postinst.service"
+      }
+    ]
+  }
+}

@@ -1,0 +1,115 @@
+variant: fcos
+version: 1.3.0
+
+passwd:
+  users:
+    - name: root
+      #ssh_authorized_keys:
+      #  - {$SSH_KEY}
+
+    - name: vgscq
+      #ssh_authorized_keys:
+      #  - ssh-rsa 
+      groups:
+        - wheel
+      # "test"
+      password_hash: $6$ZW280c2dn3OoDOn6$6gV9GbqrT0Xt6cucnzDaK6L0a6jQmJV7KIpeFNTY7by9Uk/BthDsj2FS8Zs5ZwlmeDsE0tkaKVQT468cQ4.tl/
+
+storage:
+  links:
+    - path: /etc/localtime
+      target: ../usr/share/zoneinfo/Europe/Prague
+
+  files:
+    - path: /etc/hostname
+      mode: 0644
+      contents:
+        inline: |
+          coreos
+    - path: /etc/NetworkManager/system-connections/eth0.nmconnection
+      mode: 0600
+      overwrite: true
+      contents:
+        inline: |
+          [connection]
+          id=eth0
+          type=ethernet
+          interface-name=eth0
+
+          [ipv4]
+          method=auto
+          dns=8.8.8.8;1.1.1.1
+          dns-search=vgscq.cc
+          may-fail=false
+
+    - path: /etc/selinux/config
+      contents:
+        inline: |
+          SELINUX=permissive
+          SELINUXTYPE=targeted
+      mode: 0664
+      overwrite: true
+
+    - path: /etc/sysconfig/nftables.conf
+      contents:
+        inline: |
+          flush ruleset;
+
+          table inet filter {
+            chain input {
+              type filter hook input priority 0; policy accept;
+            }
+            chain forward {
+              type filter hook forward priority 0; policy accept;
+            }
+            chain output {
+              type filter hook output priority 0; policy accept;
+            }
+          }
+      mode: 0600
+      overwrite: true
+
+    - path: /etc/yum.repos.d/tailscale.repo
+      mode: 0644
+      contents:
+        source: https://pkgs.tailscale.com/stable/fedora/tailscale.repo
+
+systemd:
+  units:
+    - name: sshd.service
+      enabled: true
+
+    - name: docker.service
+      enabled: true
+
+    - name: postinst.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Initial System Setup
+        # We run after `systemd-machine-id-commit.service` to ensure that
+        # `ConditionFirstBoot=true` services won't rerun on the next boot.
+        After=systemd-machine-id-commit.service
+        After=network-online.target
+        # We run before `zincati.service` to avoid conflicting rpm-ostree
+        # transactions.
+        Before=zincati.service
+        ConditionPathExists=!/var/lib/%N.stamp
+
+        [Service]
+        Type=oneshot
+        RemainAfterExit=yes
+        ExecStart=/usr/sbin/restorecon -R /var
+        ExecStart=/usr/sbin/setsebool -P container_use_cephfs off
+        ExecStart=/usr/sbin/setsebool -P virt_use_nfs off
+        ExecStart=/usr/sbin/setsebool -P virt_use_samba off
+        ExecStart=/usr/bin/rpm-ostree install qemu-guest-agent neovim htop tailscale docker-compose
+        ExecStart=/usr/bin/sed -i 's/\s+nullok//g' /etc/pam.d/system-auth
+        ExecStart=/usr/bin/echo 'EDITOR=nvim' >> /etc/bashrc
+        ExecStart=/usr/bin/echo 'VISUAL=nvim' >> /etc/bashrc
+        ExecStart=/usr/bin/systemctl enable tailscaled
+        ExecStart=/usr/bin/touch /var/lib/%N.stamp
+        ExecStart=/usr/bin/systemctl --no-block reboot
+
+        [Install]
+        WantedBy=multi-user.target
