@@ -82,6 +82,22 @@ storage:
       contents:
         source: https://pkgs.tailscale.com/stable/fedora/tailscale.repo
 
+    - path: /etc/zincati/config.d/51-rollout-wariness.toml
+      contents:
+        inline: |
+          [identity]
+          rollout_wariness = 0.1
+      
+    - path: /etc/zincati/config.d/55-updates-strategy.toml
+      contents:
+        inline: |
+          [updates]
+          strategy = "periodic"
+          [[updates.periodic.window]]
+          days = [ "Sun" ]
+          start_time = "01:00"
+          length_minutes = 120
+
 systemd:
   units:
     - name: sshd.service
