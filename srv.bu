@@ -1,18 +1,19 @@
 variant: fcos
-version: 1.3.0
+version: 1.0.0
 
 passwd:
   users:
     - name: root
-      #ssh_authorized_keys:
-      #  - {$SSH_KEY}
+      # Uncomment and replace {$SSH_KEY} with your actual key if needed
+      # ssh_authorized_keys:
+      #   - {$SSH_KEY}
 
     - name: vgscq
-      #ssh_authorized_keys:
-      #  - ssh-rsa 
+      ssh_authorized_keys:
+        - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCdM7kni2Y/FU6FR7h/8YtrcLlqX2OCr1dS2Xfa9uOMPszCs6xFQ9IJ0lbIl2aVnqteHpFYBFv/bT0xvBbU/X1A5rEhihQ7zRVOYVvWlXp++dPqFjVbO9XRatBLolJT5X5z4LYP92FPraZ75rXc9+kWBpqT5Aufhmi90+7G5qXHWMDzPKgwJwpwr7ryARWwilAA8sZxeLT4r9MPkEJSN8nrntdunypsl8FrGbuM71CXk0illk3hzdqUx2agW/sG/HJg3uNgrgwkAS7Wgsuud9t8ei/WrBNN9TTC7WiA/9UXh7b1kyRXYAJ9XCOjZ+dtU9ON8nDSPjcG/8CVN5VcErHo1efBknmBJqI4ldXupQFbyWeQCzs4HQ9JV0syba1vIbnu2tr42GsqYgjCUJHPVA+SKCxgna3H3uq+B3ISSh/+Mz0ZUhQN5tfIfuAXIIcQBqAJYeJ4AnVW3Wzv1muPGZBbBg3wmeSnn6ElddNg4+PkHev4xYWvlaejrAg5OSQJR/s= vgscq@vgscq-laptop
       groups:
         - wheel
-      # "test"
+      # password is test
       password_hash: $6$ZW280c2dn3OoDOn6$6gV9GbqrT0Xt6cucnzDaK6L0a6jQmJV7KIpeFNTY7by9Uk/BthDsj2FS8Zs5ZwlmeDsE0tkaKVQT468cQ4.tl/
 
 storage:
@@ -24,8 +25,8 @@ storage:
     - path: /etc/hostname
       mode: 0644
       contents:
-        inline: |
-          coreos
+        inline: coreos
+
     - path: /etc/NetworkManager/system-connections/eth0.nmconnection
       mode: 0600
       overwrite: true
@@ -43,14 +44,16 @@ storage:
           may-fail=false
 
     - path: /etc/selinux/config
+      mode: 0664
+      overwrite: true
       contents:
         inline: |
           SELINUX=permissive
           SELINUXTYPE=targeted
-      mode: 0664
-      overwrite: true
 
     - path: /etc/sysconfig/nftables.conf
+      mode: 0600
+      overwrite: true
       contents:
         inline: |
           flush ruleset;
@@ -66,8 +69,13 @@ storage:
               type filter hook output priority 0; policy accept;
             }
           }
-      mode: 0600
-      overwrite: true
+
+    - path: /etc/profile.d/custom-env.sh
+      mode: 0644
+      contents:
+        inline: |
+          export EDITOR=nvim
+          export VISUAL=nvim
 
     - path: /etc/yum.repos.d/tailscale.repo
       mode: 0644
@@ -87,12 +95,8 @@ systemd:
       contents: |
         [Unit]
         Description=Initial System Setup
-        # We run after `systemd-machine-id-commit.service` to ensure that
-        # `ConditionFirstBoot=true` services won't rerun on the next boot.
         After=systemd-machine-id-commit.service
         After=network-online.target
-        # We run before `zincati.service` to avoid conflicting rpm-ostree
-        # transactions.
         Before=zincati.service
         ConditionPathExists=!/var/lib/%N.stamp
 
@@ -104,12 +108,28 @@ systemd:
         ExecStart=/usr/sbin/setsebool -P virt_use_nfs off
         ExecStart=/usr/sbin/setsebool -P virt_use_samba off
         ExecStart=/usr/bin/rpm-ostree install qemu-guest-agent neovim htop tailscale docker-compose
-        ExecStart=/usr/bin/sed -i 's/\s+nullok//g' /etc/pam.d/system-auth
-        ExecStart=/usr/bin/echo 'EDITOR=nvim' >> /etc/bashrc
-        ExecStart=/usr/bin/echo 'VISUAL=nvim' >> /etc/bashrc
-        ExecStart=/usr/bin/systemctl enable tailscaled
         ExecStart=/usr/bin/touch /var/lib/%N.stamp
         ExecStart=/usr/bin/systemctl --no-block reboot
 
+        [Install]
+        WantedBy=multi-user.target
+
+    - name: postinst2.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Initial System Setup Part 2
+        # We run this after the packages have been overlayed
+        After=network-online.target
+        ConditionPathExists=!/var/lib/%N.stamp
+        ConditionPathExists=/var/lib/postinst.stamp
+
+        [Service]
+        Type=oneshot
+        RemainAfterExit=yes
+        ExecStart=/usr/bin/systemctl enable tailscaled
+        ExecStart=/usr/bin/touch /var/lib/%N.stamp
+        ExecStart=/usr/bin/systemctl --no-block reboot
+        
         [Install]
         WantedBy=multi-user.target

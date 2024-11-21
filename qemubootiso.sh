@@ -4,7 +4,7 @@ qemu-system-x86_64 \
     -m 4G \
     -smp 4 \
     -cdrom *.iso \
-    -boot menu=on,splash-time=5000\
+    -boot menu=on,splash-time=2500\
     -nic user,id=vmnic,hostfwd=tcp::2222-:22,hostfwd=tcp::9090-:9090 \
     -cpu host \
     -enable-kvm \
