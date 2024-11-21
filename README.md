@@ -1,4 +1,4 @@
-* Edit your server config srv.bu from srv.bu.example
+* Edit your server config srv.bu
 * Run docker compose up
 * Get your builded Ignition file srv.ign.
 
