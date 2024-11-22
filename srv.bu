@@ -98,6 +98,16 @@ storage:
           start_time = "01:00"
           length_minutes = 120
 
+    - path: /etc/issue.d/90_installing.issue
+      contents:
+        inline: |
+          
+          
+          !!! System is still installing. Wait. !!!
+
+
+
+
 systemd:
   units:
     - name: sshd.service
@@ -123,7 +133,7 @@ systemd:
         ExecStart=/usr/sbin/setsebool -P container_use_cephfs off
         ExecStart=/usr/sbin/setsebool -P virt_use_nfs off
         ExecStart=/usr/sbin/setsebool -P virt_use_samba off
-        ExecStart=/usr/bin/rpm-ostree install qemu-guest-agent neovim htop tailscale docker-compose
+        ExecStart=/usr/bin/rpm-ostree install qemu-guest-agent neovim htop tailscale docker-compose mc
         ExecStart=/usr/bin/touch /var/lib/%N.stamp
         ExecStart=/usr/bin/systemctl --no-block reboot
 
@@ -144,6 +154,7 @@ systemd:
         Type=oneshot
         RemainAfterExit=yes
         ExecStart=/usr/bin/systemctl enable tailscaled
+        ExecStart=/usr/bin/rm /etc/issue.d/90_installing.issue
         ExecStart=/usr/bin/touch /var/lib/%N.stamp
         ExecStart=/usr/bin/systemctl --no-block reboot
         
